@@ -20,6 +20,7 @@ $msgStep2 = '';
 $errStep2 = '';
 $msgStep4 = '';
 $errStep4 = '';
+$abbonamentiValidi = array('Mensile', 'Trimestrale', 'Annuale');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && v($_POST, 'azione', '') === 'login') {
     $username = trim(v($_POST, 'username', ''));
@@ -64,9 +65,19 @@ if ($autenticato) {
         $idIstruttore = (int)v($_POST, 'id_istruttore', 0);
         $idCorso = (int)v($_POST, 'id_corso', 0);
         $orario = trim(v($_POST, 'orario_preferito', ''));
+        $dataValida = DateTime::createFromFormat('Y-m-d', $dataNascita);
+        $dataOk = $dataValida && $dataValida->format('Y-m-d') === $dataNascita;
+        $orarioOk = $orario === '' || preg_match('/^\d{2}:\d{2}$/', $orario) === 1;
+        $abbonamentoOk = in_array($tipoAbbonamento, $abbonamentiValidi, true);
 
         if ($nome === '' || $cognome === '' || $dataNascita === '' || $tipoAbbonamento === '' || $idIstruttore <= 0 || $idCorso <= 0) {
             $errStep2 = 'Compila tutti i campi obbligatori';
+        } elseif (!$abbonamentoOk) {
+            $errStep2 = 'Tipo abbonamento non valido';
+        } elseif (!$dataOk) {
+            $errStep2 = 'Data nascita non valida';
+        } elseif (!$orarioOk) {
+            $errStep2 = 'Orario preferito non valido';
         } else {
             $check = $pdo->prepare('SELECT COUNT(*) FROM Corsi WHERE id_corso = ? AND id_istruttore = ?');
             $check->execute(array($idCorso, $idIstruttore));
@@ -106,9 +117,31 @@ if ($autenticato) {
         if ($idIscrizione <= 0 || $idNuovoCorso <= 0) {
             $errStep4 = 'Dati cambio corso non validi';
         } else {
-            $upd = $pdo->prepare('UPDATE Iscrizioni_Corsi SET id_corso = ? WHERE id_iscrizione = ?');
-            $upd->execute(array($idNuovoCorso, $idIscrizione));
-            $msgStep4 = 'Corso aggiornato correttamente';
+            $iscrizione = $pdo->prepare('SELECT id_corso FROM Iscrizioni_Corsi WHERE id_iscrizione = ?');
+            $iscrizione->execute(array($idIscrizione));
+            $corrente = $iscrizione->fetch();
+
+            if (!$corrente) {
+                $errStep4 = 'Iscrizione non trovata';
+            } elseif ((int)$corrente['id_corso'] === $idNuovoCorso) {
+                $errStep4 = 'Il nuovo corso coincide con quello attuale';
+            } else {
+                $corsoEsiste = $pdo->prepare('SELECT COUNT(*) FROM Corsi WHERE id_corso = ?');
+                $corsoEsiste->execute(array($idNuovoCorso));
+
+                if ((int)$corsoEsiste->fetchColumn() === 0) {
+                    $errStep4 = 'Corso selezionato non valido';
+                } else {
+                    $upd = $pdo->prepare('UPDATE Iscrizioni_Corsi SET id_corso = ? WHERE id_iscrizione = ?');
+                    $upd->execute(array($idNuovoCorso, $idIscrizione));
+
+                    if ($upd->rowCount() > 0) {
+                        $msgStep4 = 'Corso aggiornato correttamente';
+                    } else {
+                        $errStep4 = 'Nessuna modifica effettuata';
+                    }
+                }
+            }
         }
     }
 
@@ -191,7 +224,7 @@ if ($autenticato) {
         <button type="submit">Accedi</button>
     </form>
 <?php else: ?>
-    <h1>💪Karaje Gym🏋️‍♂️</h1>
+    <h1>Karaje Gym</h1>
     <p>Utente: <?= htmlspecialchars(v($_SESSION, 'utente', '')) ?> - <a href="index.php?logout=1">Logout</a></p>
 
     <h2>1) Inserisci nuovo iscritto</h2>
