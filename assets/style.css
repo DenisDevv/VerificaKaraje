@@ -4,8 +4,8 @@
     --text: #1f2937;
     --muted: #6b7280;
     --line: #d1d5db;
-    --primary: #25eb92;
-    --primary-hover: #1dd85b;
+    --primary: #1aa668;
+    --primary-hover: #1dd890;
     --ok-bg: #dcfce7;
     --ok-text: #197a3e;
     --error-bg: #fee2e2;
@@ -55,7 +55,7 @@ select {
     border-radius: 8px;
     padding: 8px 10px;
     font-size: 14px;
-    background: #fff;
+    background: var(--card);
 }
 
 input[type="checkbox"] { width: 18px; height: 18px; }
@@ -65,7 +65,7 @@ button {
     border: 0;
     border-radius: 8px;
     background: var(--primary);
-    color: #fff;
+    color: var(--card);
     padding: 9px 14px;
     font-weight: 700;
     cursor: pointer;
