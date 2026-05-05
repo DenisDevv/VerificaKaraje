@@ -2,9 +2,9 @@
 session_start();
 require_once __DIR__ . '/db.php';
 
-function valore($array, $chiave, $default)
+function v($array, $key, $default)
 {
-    return isset($array[$chiave]) ? $array[$chiave] : $default;
+    return isset($array[$key]) ? $array[$key] : $default;
 }
 
 $pdo = getPdo();
@@ -16,189 +16,147 @@ if (isset($_GET['logout'])) {
 }
 
 $erroreLogin = '';
-$messaggioStep2 = '';
-$erroreStep2 = '';
-$messaggioStep4 = '';
-$erroreStep4 = '';
+$msgStep2 = '';
+$errStep2 = '';
+$msgStep4 = '';
+$errStep4 = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && valore($_POST, 'azione', '') === 'login') {
-    $username = trim(valore($_POST, 'username', ''));
-    $password = trim(valore($_POST, 'password', ''));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && v($_POST, 'azione', '') === 'login') {
+    $username = trim(v($_POST, 'username', ''));
+    $password = trim(v($_POST, 'password', ''));
 
     if ($username === 'karaje' && $password === 'verifica') {
         $_SESSION['autenticato'] = true;
         $_SESSION['utente'] = $username;
         header('Location: index.php');
         exit;
-    } else {
-        $erroreLogin = 'Credenziali non valide';
     }
+
+    $erroreLogin = 'Credenziali non valide';
 }
 
-$autenticato = valore($_SESSION, 'autenticato', false);
+$autenticato = v($_SESSION, 'autenticato', false);
 
-$istruttori = [];
-$corsiTutti = [];
-$corsiIstruttore = [];
-$datiStep3 = [];
-$datiStep4 = [];
-$datiStep5 = [];
+$istruttori = array();
+$corsi = array();
+$step3 = array();
+$step4 = array();
+$step5 = array();
 
-$istruttoreSelezionato = (int)valore($_GET, 'id_istruttore', 0);
-$corsoFiltroStep4 = (int)valore($_GET, 'id_corso_filtro', 0);
+$corsoFiltro = (int)v($_GET, 'id_corso_filtro', 0);
 
 if ($autenticato) {
-    $istruttori = $pdo->query("SELECT id_istruttore, nome, cognome FROM Istruttori ORDER BY cognome, nome")->fetchAll();
-    $corsiTutti = $pdo->query("
-        SELECT c.id_corso, c.nome_corso, i.nome AS nome_istruttore, i.cognome AS cognome_istruttore
+    $istruttori = $pdo->query('SELECT id_istruttore, nome, cognome FROM Istruttori ORDER BY cognome, nome')->fetchAll();
+
+    $corsi = $pdo->query('
+        SELECT c.id_corso, c.nome_corso, c.id_istruttore, i.nome AS nome_istruttore, i.cognome AS cognome_istruttore
         FROM Corsi c
         LEFT JOIN Istruttori i ON i.id_istruttore = c.id_istruttore
         ORDER BY c.nome_corso
-    ")->fetchAll();
+    ')->fetchAll();
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && valore($_POST, 'azione', '') === 'inserisci_iscritto') {
-        $nome = trim(valore($_POST, 'nome', ''));
-        $cognome = trim(valore($_POST, 'cognome', ''));
-        $data_nascita = trim(valore($_POST, 'data_nascita', ''));
-        $tipo_abbonamento = trim(valore($_POST, 'tipo_abbonamento', ''));
-        $stato_pagamento = isset($_POST['stato_pagamento']) ? 1 : 0;
-        $id_istruttore = (int)valore($_POST, 'id_istruttore', 0);
-        $id_corso = (int)valore($_POST, 'id_corso', 0);
-        $orario_preferito = trim(valore($_POST, 'orario_preferito', ''));
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && v($_POST, 'azione', '') === 'inserisci_iscritto') {
+        $nome = trim(v($_POST, 'nome', ''));
+        $cognome = trim(v($_POST, 'cognome', ''));
+        $dataNascita = trim(v($_POST, 'data_nascita', ''));
+        $tipoAbbonamento = trim(v($_POST, 'tipo_abbonamento', ''));
+        $statoPagamento = isset($_POST['stato_pagamento']) ? 1 : 0;
+        $idIstruttore = (int)v($_POST, 'id_istruttore', 0);
+        $idCorso = (int)v($_POST, 'id_corso', 0);
+        $orario = trim(v($_POST, 'orario_preferito', ''));
 
-        $istruttoreSelezionato = $id_istruttore;
-
-        if ($nome === '' || $cognome === '' || $data_nascita === '' || $tipo_abbonamento === '' || $id_istruttore <= 0 || $id_corso <= 0) {
-            $erroreStep2 = 'Compila tutti i campi obbligatori';
+        if ($nome === '' || $cognome === '' || $dataNascita === '' || $tipoAbbonamento === '' || $idIstruttore <= 0 || $idCorso <= 0) {
+            $errStep2 = 'Compila tutti i campi obbligatori';
         } else {
-            $stmtControlloCorso = $pdo->prepare("SELECT COUNT(*) FROM Corsi WHERE id_corso = ? AND id_istruttore = ?");
-            $stmtControlloCorso->execute([$id_corso, $id_istruttore]);
-            $okCorso = (int)$stmtControlloCorso->fetchColumn();
+            $check = $pdo->prepare('SELECT COUNT(*) FROM Corsi WHERE id_corso = ? AND id_istruttore = ?');
+            $check->execute(array($idCorso, $idIstruttore));
 
-            if ($okCorso === 0) {
-                $erroreStep2 = 'Il corso non appartiene all istruttore selezionato';
+            if ((int)$check->fetchColumn() === 0) {
+                $errStep2 = 'Il corso non appartiene all istruttore selezionato';
             } else {
                 try {
                     $pdo->beginTransaction();
 
-                    $stmtMembro = $pdo->prepare("INSERT INTO Membri (nome, cognome, data_nascita, tipo_abbonamento, stato_pagamento) VALUES (?, ?, ?, ?, ?)");
-                    $stmtMembro->execute([$nome, $cognome, $data_nascita, $tipo_abbonamento, $stato_pagamento]);
-                    $id_membro = (int)$pdo->lastInsertId();
+                    $insMembro = $pdo->prepare('INSERT INTO Membri (nome, cognome, data_nascita, tipo_abbonamento, stato_pagamento) VALUES (?, ?, ?, ?, ?)');
+                    $insMembro->execute(array($nome, $cognome, $dataNascita, $tipoAbbonamento, $statoPagamento));
 
-                    $stmtIscrizione = $pdo->prepare("INSERT INTO Iscrizioni_Corsi (id_corso, id_membro, data_iscrizione, orario_preferito) VALUES (?, ?, CURDATE(), ?)");
-                    $orarioFinale = $orario_preferito !== '' ? $orario_preferito : null;
-                    $stmtIscrizione->execute([$id_corso, $id_membro, $orarioFinale]);
+                    $idMembro = (int)$pdo->lastInsertId();
+                    $orarioFinale = $orario === '' ? null : $orario;
+
+                    $insIscrizione = $pdo->prepare('INSERT INTO Iscrizioni_Corsi (id_corso, id_membro, data_iscrizione, orario_preferito) VALUES (?, ?, CURDATE(), ?)');
+                    $insIscrizione->execute(array($idCorso, $idMembro, $orarioFinale));
 
                     $pdo->commit();
-                    $messaggioStep2 = 'Nuovo iscritto inserito correttamente';
-                } catch (Exception $t) {
+                    $msgStep2 = 'Nuovo iscritto inserito correttamente';
+                } catch (Exception $e) {
                     if ($pdo->inTransaction()) {
                         $pdo->rollBack();
                     }
-                    $erroreStep2 = 'Errore durante l inserimento';
+                    $errStep2 = 'Errore durante l inserimento';
                 }
             }
         }
     }
 
-    if ($istruttoreSelezionato > 0) {
-        $stmtCorsiIstruttore = $pdo->prepare("SELECT id_corso, nome_corso FROM Corsi WHERE id_istruttore = ? ORDER BY nome_corso");
-        $stmtCorsiIstruttore->execute([$istruttoreSelezionato]);
-        $corsiIstruttore = $stmtCorsiIstruttore->fetchAll();
-    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && v($_POST, 'azione', '') === 'cambia_corso') {
+        $idIscrizione = (int)v($_POST, 'id_iscrizione', 0);
+        $idNuovoCorso = (int)v($_POST, 'id_nuovo_corso', 0);
+        $corsoFiltro = (int)v($_POST, 'id_corso_filtro', 0);
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && valore($_POST, 'azione', '') === 'cambia_corso') {
-        $id_iscrizione = (int)valore($_POST, 'id_iscrizione', 0);
-        $id_nuovo_corso = (int)valore($_POST, 'id_nuovo_corso', 0);
-        $corsoFiltroStep4 = (int)valore($_POST, 'id_corso_filtro', 0);
-
-        if ($id_iscrizione <= 0 || $id_nuovo_corso <= 0) {
-            $erroreStep4 = 'Dati cambio corso non validi';
+        if ($idIscrizione <= 0 || $idNuovoCorso <= 0) {
+            $errStep4 = 'Dati cambio corso non validi';
         } else {
-            $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM Corsi WHERE id_corso = ?");
-            $stmtCheck->execute([$id_nuovo_corso]);
-            $corsoEsiste = (int)$stmtCheck->fetchColumn();
-
-            if ($corsoEsiste === 0) {
-                $erroreStep4 = 'Corso selezionato non valido';
-            } else {
-                $stmtUpdate = $pdo->prepare("UPDATE Iscrizioni_Corsi SET id_corso = ? WHERE id_iscrizione = ?");
-                $stmtUpdate->execute([$id_nuovo_corso, $id_iscrizione]);
-                $messaggioStep4 = 'Corso aggiornato correttamente';
-            }
+            $upd = $pdo->prepare('UPDATE Iscrizioni_Corsi SET id_corso = ? WHERE id_iscrizione = ?');
+            $upd->execute(array($idNuovoCorso, $idIscrizione));
+            $msgStep4 = 'Corso aggiornato correttamente';
         }
     }
 
-    $sqlStep3 = "
-        SELECT
-            i.id_istruttore,
-            i.nome AS nome_istruttore,
-            i.cognome AS cognome_istruttore,
-            c.id_corso,
-            c.nome_corso,
-            t.totale_iscritti
+    $step3 = $pdo->query('
+        SELECT i.nome AS nome_istruttore, i.cognome AS cognome_istruttore, c.nome_corso, t.totale
         FROM Istruttori i
         JOIN (
-            SELECT
-                c1.id_istruttore,
-                c1.id_corso,
-                COUNT(ic1.id_iscrizione) AS totale_iscritti
+            SELECT c1.id_istruttore, c1.id_corso, COUNT(ic1.id_iscrizione) AS totale
             FROM Corsi c1
             LEFT JOIN Iscrizioni_Corsi ic1 ON ic1.id_corso = c1.id_corso
             GROUP BY c1.id_istruttore, c1.id_corso
         ) t ON t.id_istruttore = i.id_istruttore
         JOIN (
-            SELECT
-                y.id_istruttore,
-                MAX(y.totale_iscritti) AS massimo_iscritti
+            SELECT z.id_istruttore, MAX(z.totale) AS massimo
             FROM (
-                SELECT
-                    c2.id_istruttore,
-                    c2.id_corso,
-                    COUNT(ic2.id_iscrizione) AS totale_iscritti
+                SELECT c2.id_istruttore, c2.id_corso, COUNT(ic2.id_iscrizione) AS totale
                 FROM Corsi c2
                 LEFT JOIN Iscrizioni_Corsi ic2 ON ic2.id_corso = c2.id_corso
                 GROUP BY c2.id_istruttore, c2.id_corso
-            ) y
-            GROUP BY y.id_istruttore
-        ) m ON m.id_istruttore = t.id_istruttore AND m.massimo_iscritti = t.totale_iscritti
+            ) z
+            GROUP BY z.id_istruttore
+        ) m ON m.id_istruttore = t.id_istruttore AND m.massimo = t.totale
         JOIN Corsi c ON c.id_corso = t.id_corso
-        WHERE t.totale_iscritti >= 5
+        WHERE t.totale >= 5
         ORDER BY i.cognome, i.nome, c.nome_corso
-    ";
-    $datiStep3 = $pdo->query($sqlStep3)->fetchAll();
+    ')->fetchAll();
 
-    if ($corsoFiltroStep4 > 0) {
-        $stmtStep4 = $pdo->prepare("
-            SELECT
-                ic.id_iscrizione,
-                m.id_membro,
-                m.nome,
-                m.cognome,
-                m.tipo_abbonamento,
-                ic.data_iscrizione,
-                ic.orario_preferito,
-                c.nome_corso
+    if ($corsoFiltro > 0) {
+        $q4 = $pdo->prepare('
+            SELECT ic.id_iscrizione, m.cognome, m.nome, m.tipo_abbonamento, ic.data_iscrizione, ic.orario_preferito
             FROM Iscrizioni_Corsi ic
             JOIN Membri m ON m.id_membro = ic.id_membro
-            JOIN Corsi c ON c.id_corso = ic.id_corso
             WHERE ic.id_corso = ?
             ORDER BY m.cognome, m.nome
-        ");
-        $stmtStep4->execute([$corsoFiltroStep4]);
-        $datiStep4 = $stmtStep4->fetchAll();
+        ');
+        $q4->execute(array($corsoFiltro));
+        $step4 = $q4->fetchAll();
     }
 
-    $sqlStep5 = "
+    $step5 = $pdo->query('
         SELECT
-            i.nome AS nome_istruttore,
             i.cognome AS cognome_istruttore,
-            c.id_corso,
+            i.nome AS nome_istruttore,
             c.nome_corso,
             c.livello_difficolta,
             c.durata_minuti,
-            m.nome AS nome_membro,
             m.cognome AS cognome_membro,
+            m.nome AS nome_membro,
             m.tipo_abbonamento,
             m.stato_pagamento,
             ic.data_iscrizione,
@@ -208,8 +166,7 @@ if ($autenticato) {
         LEFT JOIN Iscrizioni_Corsi ic ON ic.id_corso = c.id_corso
         LEFT JOIN Membri m ON m.id_membro = ic.id_membro
         ORDER BY i.cognome, i.nome, c.nome_corso, m.cognome, m.nome
-    ";
-    $datiStep5 = $pdo->query($sqlStep5)->fetchAll();
+    ')->fetchAll();
 }
 ?>
 <!doctype html>
@@ -218,238 +175,140 @@ if ($autenticato) {
     <meta charset="UTF-8">
     <title>Karaje Gym</title>
     <link rel="stylesheet" href="assets/style.css">
+    <link rel="icon" href="assets/icon.ico">
 </head>
 <body>
 <?php if (!$autenticato): ?>
-    <h1>Accesso Karaje Gym</h1>
-    <?php if ($erroreLogin !== ''): ?>
-        <p><?= htmlspecialchars($erroreLogin) ?></p>
-    <?php endif; ?>
+    <h1>Accesso</h1>
+    <?php if ($erroreLogin !== ''): ?><p class="alert error"><?= htmlspecialchars($erroreLogin) ?></p><?php endif; ?>
     <form method="post" action="index.php">
         <input type="hidden" name="azione" value="login">
-        <div>
-            <label for="username">Nome utente</label>
-            <input id="username" type="text" name="username" required>
-        </div>
-        <div>
-            <label for="password">Password</label>
-            <input id="password" type="password" name="password" required>
-        </div>
+        <label for="username">Nome utente</label>
+        <input id="username" type="text" name="username" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" required>
         <button type="submit">Accedi</button>
     </form>
 <?php else: ?>
-    <h1>Karaje Gym</h1>
-    <p>Utente autenticato: <?= htmlspecialchars($_SESSION['utente']) ?></p>
-    <p><a href="index.php?logout=1">Logout</a></p>
+    <h1>💪Karaje Gym🏋️‍♂️</h1>
+    <p>Utente: <?= htmlspecialchars(v($_SESSION, 'utente', '')) ?> - <a href="index.php?logout=1">Logout</a></p>
 
-    <h2>Step 2 - Inserisci nuovo iscritto</h2>
-
-    <?php if ($messaggioStep2 !== ''): ?>
-        <p><?= htmlspecialchars($messaggioStep2) ?></p>
-    <?php endif; ?>
-
-    <?php if ($erroreStep2 !== ''): ?>
-        <p><?= htmlspecialchars($erroreStep2) ?></p>
-    <?php endif; ?>
-
-    <form method="get" action="index.php">
-        <div>
-            <label for="id_istruttore_carica">Istruttore</label>
-            <select id="id_istruttore_carica" name="id_istruttore" required>
-                <option value="">Seleziona istruttore</option>
-                <?php foreach ($istruttori as $i): ?>
-                    <option value="<?= (int)$i['id_istruttore'] ?>" <?= $istruttoreSelezionato === (int)$i['id_istruttore'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($i['cognome'] . ' ' . $i['nome']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <button type="submit">Carica corsi</button>
-        </div>
-    </form>
-
+    <h2>1) Inserisci nuovo iscritto</h2>
+    <?php if ($msgStep2 !== ''): ?><p class="alert ok"><?= htmlspecialchars($msgStep2) ?></p><?php endif; ?>
+    <?php if ($errStep2 !== ''): ?><p class="alert error"><?= htmlspecialchars($errStep2) ?></p><?php endif; ?>
     <form method="post" action="index.php">
         <input type="hidden" name="azione" value="inserisci_iscritto">
-        <div>
-            <label for="nome">Nome</label>
-            <input id="nome" type="text" name="nome" required>
-        </div>
-        <div>
-            <label for="cognome">Cognome</label>
-            <input id="cognome" type="text" name="cognome" required>
-        </div>
-        <div>
-            <label for="data_nascita">Data nascita</label>
-            <input id="data_nascita" type="date" name="data_nascita" required>
-        </div>
-        <div>
-            <label for="tipo_abbonamento">Tipo abbonamento</label>
-            <select id="tipo_abbonamento" name="tipo_abbonamento" required>
-                <option value="">Seleziona tipo</option>
-                <option value="Mensile">Mensile</option>
-                <option value="Trimestrale">Trimestrale</option>
-                <option value="Annuale">Annuale</option>
-            </select>
-        </div>
-        <div>
-            <label for="stato_pagamento">Stato pagamento</label>
-            <input id="stato_pagamento" type="checkbox" name="stato_pagamento" checked>
-        </div>
-        <div>
-            <label for="id_istruttore_inserisci">Istruttore</label>
-            <select id="id_istruttore_inserisci" name="id_istruttore" required>
-                <option value="">Seleziona istruttore</option>
-                <?php foreach ($istruttori as $i): ?>
-                    <option value="<?= (int)$i['id_istruttore'] ?>" <?= $istruttoreSelezionato === (int)$i['id_istruttore'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($i['cognome'] . ' ' . $i['nome']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label for="id_corso">Corso</label>
-            <select id="id_corso" name="id_corso" required>
-                <option value="">Seleziona corso</option>
-                <?php foreach ($corsiIstruttore as $c): ?>
-                    <option value="<?= (int)$c['id_corso'] ?>"><?= htmlspecialchars($c['nome_corso']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div>
-            <label for="orario_preferito">Orario preferito</label>
-            <input id="orario_preferito" type="time" name="orario_preferito">
-        </div>
-        <button type="submit">Inserisci iscritto</button>
+        <label for="nome">Nome</label>
+        <input id="nome" type="text" name="nome" required>
+        <label for="cognome">Cognome</label>
+        <input id="cognome" type="text" name="cognome" required>
+        <label for="data_nascita">Data nascita</label>
+        <input id="data_nascita" type="date" name="data_nascita" required>
+        <label for="tipo_abbonamento">Abbonamento</label>
+        <select id="tipo_abbonamento" name="tipo_abbonamento" required>
+            <option value="">Seleziona</option>
+            <option value="Mensile">Mensile</option>
+            <option value="Trimestrale">Trimestrale</option>
+            <option value="Annuale">Annuale</option>
+        </select>
+        <label for="stato_pagamento">Pagato</label>
+        <input id="stato_pagamento" type="checkbox" name="stato_pagamento" checked>
+        <label for="id_istruttore">Istruttore</label>
+        <select id="id_istruttore" name="id_istruttore" required>
+            <option value="">Seleziona</option>
+            <?php foreach ($istruttori as $i): ?>
+                <option value="<?= (int)$i['id_istruttore'] ?>"><?= htmlspecialchars($i['cognome'] . ' ' . $i['nome']) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <label for="id_corso">Corso</label>
+        <select id="id_corso" name="id_corso" required>
+            <option value="">Seleziona</option>
+            <?php foreach ($corsi as $c): ?>
+                <option value="<?= (int)$c['id_corso'] ?>"><?= htmlspecialchars($c['nome_corso'] . ' - ' . $c['cognome_istruttore']) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <label for="orario_preferito">Orario preferito</label>
+        <input id="orario_preferito" type="time" name="orario_preferito">
+        <button type="submit">Inserisci</button>
     </form>
 
-    <h2>Step 3 - Corso con maggior numero di iscritti per istruttore con almeno 5 iscritti</h2>
-
-    <?php if (count($datiStep3) === 0): ?>
-        <p>Nessun istruttore ha corsi con almeno 5 iscritti.</p>
+    <h2>2) Corso top per istruttore (minimo 5 iscritti)</h2>
+    <?php if (count($step3) === 0): ?>
+        <p>Nessun risultato.</p>
     <?php else: ?>
         <table>
-            <tr>
-                <th>Istruttore</th>
-                <th>Corso</th>
-                <th>Totale iscritti</th>
-            </tr>
-            <?php foreach ($datiStep3 as $r): ?>
+            <tr><th>Istruttore</th><th>Corso</th><th>Iscritti</th></tr>
+            <?php foreach ($step3 as $r): ?>
                 <tr>
                     <td><?= htmlspecialchars($r['cognome_istruttore'] . ' ' . $r['nome_istruttore']) ?></td>
                     <td><?= htmlspecialchars($r['nome_corso']) ?></td>
-                    <td><?= (int)$r['totale_iscritti'] ?></td>
+                    <td><?= (int)$r['totale'] ?></td>
                 </tr>
             <?php endforeach; ?>
         </table>
     <?php endif; ?>
 
-    <h2>Step 4 - Elenco iscritti a un corso e cambio corso</h2>
-
-    <?php if ($messaggioStep4 !== ''): ?>
-        <p><?= htmlspecialchars($messaggioStep4) ?></p>
-    <?php endif; ?>
-
-    <?php if ($erroreStep4 !== ''): ?>
-        <p><?= htmlspecialchars($erroreStep4) ?></p>
-    <?php endif; ?>
-
+    <h2>3) Elenco iscritti e cambio corso</h2>
+    <?php if ($msgStep4 !== ''): ?><p class="alert ok"><?= htmlspecialchars($msgStep4) ?></p><?php endif; ?>
+    <?php if ($errStep4 !== ''): ?><p class="alert error"><?= htmlspecialchars($errStep4) ?></p><?php endif; ?>
     <form method="get" action="index.php">
-        <div>
-            <label for="id_corso_filtro">Corso</label>
-            <select id="id_corso_filtro" name="id_corso_filtro" required>
-                <option value="">Seleziona corso</option>
-                <?php foreach ($corsiTutti as $c): ?>
-                    <option value="<?= (int)$c['id_corso'] ?>" <?= $corsoFiltroStep4 === (int)$c['id_corso'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($c['nome_corso']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <button type="submit">Mostra iscritti</button>
-        </div>
+        <label for="id_corso_filtro">Corso</label>
+        <select id="id_corso_filtro" name="id_corso_filtro" required>
+            <option value="">Seleziona</option>
+            <?php foreach ($corsi as $c): ?>
+                <option value="<?= (int)$c['id_corso'] ?>" <?= $corsoFiltro === (int)$c['id_corso'] ? 'selected' : '' ?>><?= htmlspecialchars($c['nome_corso']) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit">Mostra</button>
     </form>
 
-    <?php if ($corsoFiltroStep4 > 0): ?>
-        <?php if (count($datiStep4) === 0): ?>
-            <p>Nessun iscritto per il corso selezionato.</p>
-        <?php else: ?>
-            <table>
+    <?php if ($corsoFiltro > 0 && count($step4) === 0): ?><p>Nessun iscritto.</p><?php endif; ?>
+    <?php if ($corsoFiltro > 0 && count($step4) > 0): ?>
+        <table>
+            <tr><th>Iscritto</th><th>Abbonamento</th><th>Data</th><th>Orario</th><th>Cambia</th></tr>
+            <?php foreach ($step4 as $r): ?>
                 <tr>
-                    <th>Iscritto</th>
-                    <th>Abbonamento</th>
-                    <th>Data iscrizione</th>
-                    <th>Orario preferito</th>
-                    <th>Cambio corso</th>
+                    <td><?= htmlspecialchars($r['cognome'] . ' ' . $r['nome']) ?></td>
+                    <td><?= htmlspecialchars($r['tipo_abbonamento']) ?></td>
+                    <td><?= htmlspecialchars($r['data_iscrizione']) ?></td>
+                    <td><?= htmlspecialchars(v($r, 'orario_preferito', '')) ?></td>
+                    <td>
+                        <form method="post" action="index.php">
+                            <input type="hidden" name="azione" value="cambia_corso">
+                            <input type="hidden" name="id_iscrizione" value="<?= (int)$r['id_iscrizione'] ?>">
+                            <input type="hidden" name="id_corso_filtro" value="<?= (int)$corsoFiltro ?>">
+                            <label for="id_nuovo_corso_<?= (int)$r['id_iscrizione'] ?>">Nuovo corso</label>
+                            <select id="id_nuovo_corso_<?= (int)$r['id_iscrizione'] ?>" name="id_nuovo_corso" required>
+                                <option value="">Seleziona</option>
+                                <?php foreach ($corsi as $c): ?>
+                                    <option value="<?= (int)$c['id_corso'] ?>"><?= htmlspecialchars($c['nome_corso']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit">Cambia</button>
+                        </form>
+                    </td>
                 </tr>
-                <?php foreach ($datiStep4 as $r): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($r['cognome'] . ' ' . $r['nome']) ?></td>
-                        <td><?= htmlspecialchars($r['tipo_abbonamento']) ?></td>
-                        <td><?= htmlspecialchars($r['data_iscrizione']) ?></td>
-                        <td><?= htmlspecialchars(isset($r['orario_preferito']) ? $r['orario_preferito'] : '') ?></td>
-                        <td>
-                            <form method="post" action="index.php">
-                                <input type="hidden" name="azione" value="cambia_corso">
-                                <input type="hidden" name="id_iscrizione" value="<?= (int)$r['id_iscrizione'] ?>">
-                                <input type="hidden" name="id_corso_filtro" value="<?= (int)$corsoFiltroStep4 ?>">
-                                <label for="id_nuovo_corso_<?= (int)$r['id_iscrizione'] ?>">Nuovo corso</label>
-                                <select id="id_nuovo_corso_<?= (int)$r['id_iscrizione'] ?>" name="id_nuovo_corso" required>
-                                    <option value="">Nuovo corso</option>
-                                    <?php foreach ($corsiTutti as $c): ?>
-                                        <option value="<?= (int)$c['id_corso'] ?>"><?= htmlspecialchars($c['nome_corso']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <button type="submit">Cambia corso</button>
-                            </form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
-        <?php endif; ?>
+            <?php endforeach; ?>
+        </table>
     <?php endif; ?>
 
-    <h2>Step 5 - Report completo istruttori, corsi e iscritti</h2>
-
-    <?php if (count($datiStep5) === 0): ?>
-        <p>Nessun dato disponibile.</p>
+    <h2>4) Report completo</h2>
+    <?php if (count($step5) === 0): ?>
+        <p>Nessun dato.</p>
     <?php else: ?>
         <table>
-            <tr>
-                <th>Istruttore</th>
-                <th>Corso</th>
-                <th>Livello</th>
-                <th>Durata</th>
-                <th>Iscritto</th>
-                <th>Abbonamento</th>
-                <th>Pagamento</th>
-                <th>Data iscrizione</th>
-                <th>Orario</th>
-            </tr>
-            <?php foreach ($datiStep5 as $r): ?>
+            <tr><th>Istruttore</th><th>Corso</th><th>Livello</th><th>Durata</th><th>Iscritto</th><th>Abbon.</th><th>Pagamento</th><th>Data</th><th>Orario</th></tr>
+            <?php foreach ($step5 as $r): ?>
                 <tr>
                     <td><?= htmlspecialchars($r['cognome_istruttore'] . ' ' . $r['nome_istruttore']) ?></td>
                     <td><?= htmlspecialchars($r['nome_corso']) ?></td>
                     <td><?= htmlspecialchars($r['livello_difficolta']) ?></td>
                     <td><?= htmlspecialchars((string)$r['durata_minuti']) ?></td>
-                    <td>
-                        <?php
-                        if ($r['cognome_membro'] === null) {
-                            echo 'Nessun iscritto';
-                        } else {
-                            echo htmlspecialchars($r['cognome_membro'] . ' ' . $r['nome_membro']);
-                        }
-                        ?>
-                    </td>
-                    <td><?= htmlspecialchars(isset($r['tipo_abbonamento']) ? $r['tipo_abbonamento'] : '') ?></td>
-                    <td>
-                        <?php
-                        if ($r['stato_pagamento'] === null) {
-                            echo '';
-                        } else {
-                            echo (int)$r['stato_pagamento'] === 1 ? 'Pagato' : 'Non pagato';
-                        }
-                        ?>
-                    </td>
-                    <td><?= htmlspecialchars(isset($r['data_iscrizione']) ? $r['data_iscrizione'] : '') ?></td>
-                    <td><?= htmlspecialchars(isset($r['orario_preferito']) ? $r['orario_preferito'] : '') ?></td>
+                    <td><?= $r['cognome_membro'] === null ? 'Nessun iscritto' : htmlspecialchars($r['cognome_membro'] . ' ' . $r['nome_membro']) ?></td>
+                    <td><?= htmlspecialchars(v($r, 'tipo_abbonamento', '')) ?></td>
+                    <td><?= $r['stato_pagamento'] === null ? '' : ((int)$r['stato_pagamento'] === 1 ? 'Pagato' : 'Non pagato') ?></td>
+                    <td><?= htmlspecialchars(v($r, 'data_iscrizione', '')) ?></td>
+                    <td><?= htmlspecialchars(v($r, 'orario_preferito', '')) ?></td>
                 </tr>
             <?php endforeach; ?>
         </table>
