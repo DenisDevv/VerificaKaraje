@@ -28,8 +28,8 @@ h1 {
     margin: 0 0 10px;
     font-family: Arial, sans-serif;
     font-style: normal;
-    font-weight: 700;
-    font-size: 28px;
+    font-weight: bolder;
+    font-size: 34px;
 }
 h2 { margin: 22px 0 10px; }
 p { margin: 8px 0; color: var(--muted); }
