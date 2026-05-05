@@ -4,278 +4,270 @@
     --text: #1f2937;
     --muted: #6b7280;
     --line: #d1d5db;
-    --primary: #1aa668;
-    --primary-hover: #1dd890;
-        :root {
-            --bg: #f3f6fc;
-            --card: #ffffff;
-            --text: #1f2937;
-            --muted: #6b7280;
-            --line: #d1d5db;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --ok-bg: #dcfce7;
-            --ok-text: #166534;
-            --error-bg: #fee2e2;
-            --error-text: #991b1b;
-        }
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --ok-bg: #dcfce7;
+    --ok-text: #166534;
+    --error-bg: #fee2e2;
+    --error-text: #991b1b;
+}
 
-        * {
-            box-sizing: border-box;
-        }
+* {
+    box-sizing: border-box;
+}
 
-        html, body {
-            margin: 0;
-            padding: 0;
-        }
+html, body {
+    margin: 0;
+    padding: 0;
+}
 
-        body {
-            font-family: Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.4;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 16px 12px 30px;
-        }
+body {
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px 12px 30px;
+}
 
-        h1 {
-            margin: 0 0 8px;
-            font-size: 26px;
-        }
+h1 {
+    margin: 0 0 8px;
+    font-size: 26px;
+}
 
-        h2 {
-            margin: 18px 0 10px;
-            font-size: 18px;
-        }
+h2 {
+    margin: 18px 0 10px;
+    font-size: 18px;
+}
 
-        p {
-            margin: 6px 0;
-            color: var(--muted);
-        }
+p {
+    margin: 6px 0;
+    color: var(--muted);
+}
 
-        a {
-            color: var(--primary);
-            text-decoration: none;
-        }
+a {
+    color: var(--primary);
+    text-decoration: none;
+}
 
-        a:hover {
-            text-decoration: underline;
-        }
+a:hover {
+    text-decoration: underline;
+}
 
-        form {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 12px;
-            margin: 10px 0 14px;
-        }
+form {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0 14px;
+}
 
-        label {
-            display: block;
-            font-weight: 700;
-            margin: 8px 0 4px;
-            font-size: 14px;
-        }
+label {
+    display: block;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    font-size: 14px;
+}
 
-        input[type="text"],
-        input[type="password"],
-        input[type="date"],
-        input[type="time"],
-        select {
-            width: 100%;
-            border: 1px solid var(--line);
-            border-radius: 6px;
-            padding: 10px 8px;
-            font-size: 14px;
-            background: #fff;
-            margin-bottom: 6px;
-            -webkit-appearance: none;
-            appearance: none;
-        }
+input[type="text"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+select {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 8px;
+    font-size: 14px;
+    background: #fff;
+    margin-bottom: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+}
 
-        select {
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f2937' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 8px center;
-            background-size: 18px;
-            padding-right: 32px;
-        }
+select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f2937' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 18px;
+    padding-right: 32px;
+}
 
-        input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-right: 8px;
-            cursor: pointer;
-        }
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    cursor: pointer;
+}
 
-        button {
-            width: 100%;
-            border: 0;
-            border-radius: 6px;
-            background: var(--primary);
-            color: #fff;
-            padding: 11px 12px;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: background-color 0.2s;
-        }
+button {
+    width: 100%;
+    border: 0;
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    padding: 11px 12px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background-color 0.2s;
+}
 
-        button:hover {
-            background: var(--primary-hover);
-        }
+button:hover {
+    background: var(--primary-hover);
+}
 
-        button:active {
-            opacity: 0.9;
-        }
+button:active {
+    opacity: 0.9;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--card);
-            border: 1px solid var(--line);
-            margin: 10px 0 14px;
-            font-size: 13px;
-            overflow: auto;
-        }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--line);
+    margin: 10px 0 14px;
+    font-size: 13px;
+    overflow: auto;
+}
 
-        th, td {
-            border: 1px solid var(--line);
-            padding: 8px 6px;
-            text-align: left;
-            vertical-align: top;
-        }
+th, td {
+    border: 1px solid var(--line);
+    padding: 8px 6px;
+    text-align: left;
+    vertical-align: top;
+}
 
-        th {
-            background: #eff6ff;
-            font-weight: 700;
-        }
+th {
+    background: #eff6ff;
+    font-weight: 700;
+}
 
-        tr:nth-child(even) td {
-            background: #f9fafb;
-        }
+tr:nth-child(even) td {
+    background: #f9fafb;
+}
 
-        td form {
-            background: transparent;
-            border: 0;
-            padding: 0;
-            margin: 0;
-        }
+td form {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
 
-        td form label {
-            margin: 4px 0 2px;
-            font-size: 12px;
-        }
+td form label {
+    margin: 4px 0 2px;
+    font-size: 12px;
+}
 
-        td form select {
-            padding: 6px 8px;
-            font-size: 12px;
-            margin-bottom: 4px;
-        }
+td form select {
+    padding: 6px 8px;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
 
-        td form button {
-            padding: 6px 8px;
-            margin: 4px 0 0;
-            font-size: 12px;
-        }
+td form button {
+    padding: 6px 8px;
+    margin: 4px 0 0;
+    font-size: 12px;
+}
 
-        .alert {
-            border-radius: 6px;
-            padding: 10px 10px;
-            margin: 8px 0;
-            font-size: 14px;
-        }
+.alert {
+    border-radius: 6px;
+    padding: 10px 10px;
+    margin: 8px 0;
+    font-size: 14px;
+}
 
-        .ok {
-            background: var(--ok-bg);
-            color: var(--ok-text);
-            border-left: 4px solid var(--ok-text);
-        }
+.ok {
+    background: var(--ok-bg);
+    color: var(--ok-text);
+    border-left: 4px solid var(--ok-text);
+}
 
-        .error {
-            background: var(--error-bg);
-            color: var(--error-text);
-            border-left: 4px solid var(--error-text);
-        }
+.error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-left: 4px solid var(--error-text);
+}
 
-        @media (min-width: 640px) {
-            body {
-                padding: 20px 18px 36px;
-            }
+@media (min-width: 640px) {
+    body {
+        padding: 20px 18px 36px;
+    }
 
-            h1 {
-                font-size: 28px;
-            }
+    h1 {
+        font-size: 28px;
+    }
 
-            h2 {
-                font-size: 20px;
-            }
+    h2 {
+        font-size: 20px;
+    }
 
-            label {
-                font-size: 15px;
-            }
+    label {
+        font-size: 15px;
+    }
 
-            input[type="text"],
-            input[type="password"],
-            input[type="date"],
-            input[type="time"],
-            select {
-                font-size: 15px;
-                padding: 11px 10px;
-            }
+    input[type="text"],
+    input[type="password"],
+    input[type="date"],
+    input[type="time"],
+    select {
+        font-size: 15px;
+        padding: 11px 10px;
+    }
 
-            button {
-                font-size: 15px;
-                padding: 10px 14px;
-            }
+    button {
+        font-size: 15px;
+        padding: 10px 14px;
+    }
 
-            table {
-                font-size: 14px;
-            }
+    table {
+        font-size: 14px;
+    }
 
-            th, td {
-                padding: 10px 8px;
-            }
-        }
+    th, td {
+        padding: 10px 8px;
+    }
+}
 
-        @media (min-width: 1024px) {
-            body {
-                padding: 24px 20px 40px;
-            }
+@media (min-width: 1024px) {
+    body {
+        padding: 24px 20px 40px;
+    }
 
-            h1 {
-                font-size: 32px;
-            }
+    h1 {
+        font-size: 32px;
+    }
 
-            h2 {
-                font-size: 22px;
-            }
+    h2 {
+        font-size: 22px;
+    }
 
-            label {
-                font-size: 16px;
-            }
+    label {
+        font-size: 16px;
+    }
 
-            input[type="text"],
-            input[type="password"],
-            input[type="date"],
-            input[type="time"],
-            select {
-                font-size: 16px;
-                padding: 12px 12px;
-            }
+    input[type="text"],
+    input[type="password"],
+    input[type="date"],
+    input[type="time"],
+    select {
+        font-size: 16px;
+        padding: 12px 12px;
+    }
 
-            button {
-                font-size: 16px;
-                padding: 11px 16px;
-            }
+    button {
+        font-size: 16px;
+        padding: 11px 16px;
+    }
 
-            table {
-                font-size: 15px;
-            }
+    table {
+        font-size: 15px;
+    }
 
-            th, td {
-                padding: 11px 10px;
-            }
-        }
+    th, td {
+        padding: 11px 10px;
+    }
+}
