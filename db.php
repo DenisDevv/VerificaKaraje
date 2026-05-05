@@ -156,18 +156,23 @@ if ($autenticato) {
             LEFT JOIN Iscrizioni_Corsi ic1 ON ic1.id_corso = c1.id_corso
             GROUP BY c1.id_istruttore, c1.id_corso
         ) t ON t.id_istruttore = i.id_istruttore
+        JOIN (
+            SELECT
+                y.id_istruttore,
+                MAX(y.totale_iscritti) AS massimo_iscritti
+            FROM (
+                SELECT
+                    c2.id_istruttore,
+                    c2.id_corso,
+                    COUNT(ic2.id_iscrizione) AS totale_iscritti
+                FROM Corsi c2
+                LEFT JOIN Iscrizioni_Corsi ic2 ON ic2.id_corso = c2.id_corso
+                GROUP BY c2.id_istruttore, c2.id_corso
+            ) y
+            GROUP BY y.id_istruttore
+        ) m ON m.id_istruttore = t.id_istruttore AND m.massimo_iscritti = t.totale_iscritti
         JOIN Corsi c ON c.id_corso = t.id_corso
         WHERE t.totale_iscritti >= 5
-          AND t.totale_iscritti = (
-              SELECT MAX(x.totale)
-              FROM (
-                  SELECT COUNT(ic2.id_iscrizione) AS totale
-                  FROM Corsi c2
-                  LEFT JOIN Iscrizioni_Corsi ic2 ON ic2.id_corso = c2.id_corso
-                  WHERE c2.id_istruttore = i.id_istruttore
-                  GROUP BY c2.id_corso
-              ) x
-          )
         ORDER BY i.cognome, i.nome, c.nome_corso
     ";
     $datiStep3 = $pdo->query($sqlStep3)->fetchAll();
