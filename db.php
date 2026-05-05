@@ -24,11 +24,13 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
-$errore = '';
+$erroreLogin = '';
 $messaggioStep2 = '';
 $erroreStep2 = '';
+$messaggioStep4 = '';
+$erroreStep4 = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['azione']) && $_POST['azione'] === 'login') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['azione'] ?? '') === 'login') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
@@ -38,25 +40,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['azione']) && $_POST['
         header('Location: db.php');
         exit;
     } else {
-        $errore = 'Credenziali non valide';
+        $erroreLogin = 'Credenziali non valide';
     }
 }
 
 $autenticato = $_SESSION['autenticato'] ?? false;
 
 $istruttori = [];
+$corsiTutti = [];
 $corsiIstruttore = [];
-$istruttoreSelezionato = 0;
+$datiStep3 = [];
+$datiStep4 = [];
+$datiStep5 = [];
+
+$istruttoreSelezionato = (int)($_GET['id_istruttore'] ?? 0);
+$corsoFiltroStep4 = (int)($_GET['id_corso_filtro'] ?? 0);
 
 if ($autenticato) {
-    $stmtIstruttori = $pdo->query("SELECT id_istruttore, nome, cognome FROM Istruttori ORDER BY cognome, nome");
-    $istruttori = $stmtIstruttori->fetchAll();
+    $istruttori = $pdo->query("SELECT id_istruttore, nome, cognome FROM Istruttori ORDER BY cognome, nome")->fetchAll();
+    $corsiTutti = $pdo->query("
+        SELECT c.id_corso, c.nome_corso, i.nome AS nome_istruttore, i.cognome AS cognome_istruttore
+        FROM Corsi c
+        LEFT JOIN Istruttori i ON i.id_istruttore = c.id_istruttore
+        ORDER BY c.nome_corso
+    ")->fetchAll();
 
-    if (isset($_GET['id_istruttore'])) {
-        $istruttoreSelezionato = (int)$_GET['id_istruttore'];
-    }
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['azione']) && $_POST['azione'] === 'inserisci_iscritto') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['azione'] ?? '') === 'inserisci_iscritto') {
         $nome = trim($_POST['nome'] ?? '');
         $cognome = trim($_POST['cognome'] ?? '');
         $data_nascita = trim($_POST['data_nascita'] ?? '');
@@ -102,10 +111,109 @@ if ($autenticato) {
     }
 
     if ($istruttoreSelezionato > 0) {
-        $stmtCorsi = $pdo->prepare("SELECT id_corso, nome_corso FROM Corsi WHERE id_istruttore = ? ORDER BY nome_corso");
-        $stmtCorsi->execute([$istruttoreSelezionato]);
-        $corsiIstruttore = $stmtCorsi->fetchAll();
+        $stmtCorsiIstruttore = $pdo->prepare("SELECT id_corso, nome_corso FROM Corsi WHERE id_istruttore = ? ORDER BY nome_corso");
+        $stmtCorsiIstruttore->execute([$istruttoreSelezionato]);
+        $corsiIstruttore = $stmtCorsiIstruttore->fetchAll();
     }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['azione'] ?? '') === 'cambia_corso') {
+        $id_iscrizione = (int)($_POST['id_iscrizione'] ?? 0);
+        $id_nuovo_corso = (int)($_POST['id_nuovo_corso'] ?? 0);
+        $corsoFiltroStep4 = (int)($_POST['id_corso_filtro'] ?? 0);
+
+        if ($id_iscrizione <= 0 || $id_nuovo_corso <= 0) {
+            $erroreStep4 = 'Dati cambio corso non validi';
+        } else {
+            $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM Corsi WHERE id_corso = ?");
+            $stmtCheck->execute([$id_nuovo_corso]);
+            $corsoEsiste = (int)$stmtCheck->fetchColumn();
+
+            if ($corsoEsiste === 0) {
+                $erroreStep4 = 'Corso selezionato non valido';
+            } else {
+                $stmtUpdate = $pdo->prepare("UPDATE Iscrizioni_Corsi SET id_corso = ? WHERE id_iscrizione = ?");
+                $stmtUpdate->execute([$id_nuovo_corso, $id_iscrizione]);
+                $messaggioStep4 = 'Corso aggiornato correttamente';
+            }
+        }
+    }
+
+    $sqlStep3 = "
+        SELECT
+            i.id_istruttore,
+            i.nome AS nome_istruttore,
+            i.cognome AS cognome_istruttore,
+            c.id_corso,
+            c.nome_corso,
+            t.totale_iscritti
+        FROM Istruttori i
+        JOIN (
+            SELECT
+                c1.id_istruttore,
+                c1.id_corso,
+                COUNT(ic1.id_iscrizione) AS totale_iscritti
+            FROM Corsi c1
+            LEFT JOIN Iscrizioni_Corsi ic1 ON ic1.id_corso = c1.id_corso
+            GROUP BY c1.id_istruttore, c1.id_corso
+        ) t ON t.id_istruttore = i.id_istruttore
+        JOIN Corsi c ON c.id_corso = t.id_corso
+        WHERE t.totale_iscritti >= 5
+          AND t.totale_iscritti = (
+              SELECT MAX(x.totale)
+              FROM (
+                  SELECT COUNT(ic2.id_iscrizione) AS totale
+                  FROM Corsi c2
+                  LEFT JOIN Iscrizioni_Corsi ic2 ON ic2.id_corso = c2.id_corso
+                  WHERE c2.id_istruttore = i.id_istruttore
+                  GROUP BY c2.id_corso
+              ) x
+          )
+        ORDER BY i.cognome, i.nome, c.nome_corso
+    ";
+    $datiStep3 = $pdo->query($sqlStep3)->fetchAll();
+
+    if ($corsoFiltroStep4 > 0) {
+        $stmtStep4 = $pdo->prepare("
+            SELECT
+                ic.id_iscrizione,
+                m.id_membro,
+                m.nome,
+                m.cognome,
+                m.tipo_abbonamento,
+                ic.data_iscrizione,
+                ic.orario_preferito,
+                c.nome_corso
+            FROM Iscrizioni_Corsi ic
+            JOIN Membri m ON m.id_membro = ic.id_membro
+            JOIN Corsi c ON c.id_corso = ic.id_corso
+            WHERE ic.id_corso = ?
+            ORDER BY m.cognome, m.nome
+        ");
+        $stmtStep4->execute([$corsoFiltroStep4]);
+        $datiStep4 = $stmtStep4->fetchAll();
+    }
+
+    $sqlStep5 = "
+        SELECT
+            i.nome AS nome_istruttore,
+            i.cognome AS cognome_istruttore,
+            c.id_corso,
+            c.nome_corso,
+            c.livello_difficolta,
+            c.durata_minuti,
+            m.nome AS nome_membro,
+            m.cognome AS cognome_membro,
+            m.tipo_abbonamento,
+            m.stato_pagamento,
+            ic.data_iscrizione,
+            ic.orario_preferito
+        FROM Istruttori i
+        JOIN Corsi c ON c.id_istruttore = i.id_istruttore
+        LEFT JOIN Iscrizioni_Corsi ic ON ic.id_corso = c.id_corso
+        LEFT JOIN Membri m ON m.id_membro = ic.id_membro
+        ORDER BY i.cognome, i.nome, c.nome_corso, m.cognome, m.nome
+    ";
+    $datiStep5 = $pdo->query($sqlStep5)->fetchAll();
 }
 ?>
 <!doctype html>
@@ -117,8 +225,8 @@ if ($autenticato) {
 <body>
 <?php if (!$autenticato): ?>
     <h1>Accesso Karaje Gym</h1>
-    <?php if ($errore !== ''): ?>
-        <p><?= htmlspecialchars($errore) ?></p>
+    <?php if ($erroreLogin !== ''): ?>
+        <p><?= htmlspecialchars($erroreLogin) ?></p>
     <?php endif; ?>
     <form method="post" action="db.php">
         <input type="hidden" name="azione" value="login">
@@ -133,8 +241,9 @@ if ($autenticato) {
         <button type="submit">Accedi</button>
     </form>
 <?php else: ?>
-    <h1>Area riservata</h1>
-    <p>Benvenuto <?= htmlspecialchars($_SESSION['utente']) ?></p>
+    <h1>Karaje Gym</h1>
+    <p>Utente autenticato: <?= htmlspecialchars($_SESSION['utente']) ?></p>
+    <p><a href="db.php?logout=1">Logout</a></p>
 
     <h2>Step 2 - Inserisci nuovo iscritto</h2>
 
@@ -215,13 +324,139 @@ if ($autenticato) {
         <button type="submit">Inserisci iscritto</button>
     </form>
 
-    <ul>
-        <li>Step 3: Corso con maggior numero di iscritti per istruttore con almeno 5 iscritti</li>
-        <li>Step 4: Elenco iscritti a corso con cambia corso</li>
-        <li>Step 5: Report completo corsi e iscritti ordinato</li>
-    </ul>
+    <h2>Step 3 - Corso con maggior numero di iscritti per istruttore con almeno 5 iscritti</h2>
 
-    <a href="db.php?logout=1">Logout</a>
+    <?php if (count($datiStep3) === 0): ?>
+        <p>Nessun istruttore ha corsi con almeno 5 iscritti.</p>
+    <?php else: ?>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Istruttore</th>
+                <th>Corso</th>
+                <th>Totale iscritti</th>
+            </tr>
+            <?php foreach ($datiStep3 as $r): ?>
+                <tr>
+                    <td><?= htmlspecialchars($r['cognome_istruttore'] . ' ' . $r['nome_istruttore']) ?></td>
+                    <td><?= htmlspecialchars($r['nome_corso']) ?></td>
+                    <td><?= (int)$r['totale_iscritti'] ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    <?php endif; ?>
+
+    <h2>Step 4 - Elenco iscritti a un corso e cambio corso</h2>
+
+    <?php if ($messaggioStep4 !== ''): ?>
+        <p><?= htmlspecialchars($messaggioStep4) ?></p>
+    <?php endif; ?>
+
+    <?php if ($erroreStep4 !== ''): ?>
+        <p><?= htmlspecialchars($erroreStep4) ?></p>
+    <?php endif; ?>
+
+    <form method="get" action="db.php">
+        <div>
+            <label>Corso</label>
+            <select name="id_corso_filtro" required>
+                <option value="">Seleziona corso</option>
+                <?php foreach ($corsiTutti as $c): ?>
+                    <option value="<?= (int)$c['id_corso'] ?>" <?= $corsoFiltroStep4 === (int)$c['id_corso'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($c['nome_corso']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit">Mostra iscritti</button>
+        </div>
+    </form>
+
+    <?php if ($corsoFiltroStep4 > 0): ?>
+        <?php if (count($datiStep4) === 0): ?>
+            <p>Nessun iscritto per il corso selezionato.</p>
+        <?php else: ?>
+            <table border="1" cellpadding="6" cellspacing="0">
+                <tr>
+                    <th>Iscritto</th>
+                    <th>Abbonamento</th>
+                    <th>Data iscrizione</th>
+                    <th>Orario preferito</th>
+                    <th>Cambio corso</th>
+                </tr>
+                <?php foreach ($datiStep4 as $r): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($r['cognome'] . ' ' . $r['nome']) ?></td>
+                        <td><?= htmlspecialchars($r['tipo_abbonamento']) ?></td>
+                        <td><?= htmlspecialchars($r['data_iscrizione']) ?></td>
+                        <td><?= htmlspecialchars($r['orario_preferito'] ?? '') ?></td>
+                        <td>
+                            <form method="post" action="db.php">
+                                <input type="hidden" name="azione" value="cambia_corso">
+                                <input type="hidden" name="id_iscrizione" value="<?= (int)$r['id_iscrizione'] ?>">
+                                <input type="hidden" name="id_corso_filtro" value="<?= (int)$corsoFiltroStep4 ?>">
+                                <select name="id_nuovo_corso" required>
+                                    <option value="">Nuovo corso</option>
+                                    <?php foreach ($corsiTutti as $c): ?>
+                                        <option value="<?= (int)$c['id_corso'] ?>"><?= htmlspecialchars($c['nome_corso']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="submit">Cambia corso</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <h2>Step 5 - Report completo istruttori, corsi e iscritti</h2>
+
+    <?php if (count($datiStep5) === 0): ?>
+        <p>Nessun dato disponibile.</p>
+    <?php else: ?>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Istruttore</th>
+                <th>Corso</th>
+                <th>Livello</th>
+                <th>Durata</th>
+                <th>Iscritto</th>
+                <th>Abbonamento</th>
+                <th>Pagamento</th>
+                <th>Data iscrizione</th>
+                <th>Orario</th>
+            </tr>
+            <?php foreach ($datiStep5 as $r): ?>
+                <tr>
+                    <td><?= htmlspecialchars($r['cognome_istruttore'] . ' ' . $r['nome_istruttore']) ?></td>
+                    <td><?= htmlspecialchars($r['nome_corso']) ?></td>
+                    <td><?= htmlspecialchars($r['livello_difficolta']) ?></td>
+                    <td><?= htmlspecialchars((string)$r['durata_minuti']) ?></td>
+                    <td>
+                        <?php
+                        if ($r['cognome_membro'] === null) {
+                            echo 'Nessun iscritto';
+                        } else {
+                            echo htmlspecialchars($r['cognome_membro'] . ' ' . $r['nome_membro']);
+                        }
+                        ?>
+                    </td>
+                    <td><?= htmlspecialchars($r['tipo_abbonamento'] ?? '') ?></td>
+                    <td>
+                        <?php
+                        if ($r['stato_pagamento'] === null) {
+                            echo '';
+                        } else {
+                            echo (int)$r['stato_pagamento'] === 1 ? 'Pagato' : 'Non pagato';
+                        }
+                        ?>
+                    </td>
+                    <td><?= htmlspecialchars($r['data_iscrizione'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['orario_preferito'] ?? '') ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    <?php endif; ?>
+
 <?php endif; ?>
 </body>
 </html>
